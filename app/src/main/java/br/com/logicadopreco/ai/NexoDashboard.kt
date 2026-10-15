@@ -154,7 +154,7 @@ fun NexoDashboard(
             BrandMark()
             Column(Modifier.weight(1f)) {
                 Text("LÓGICA DO PREÇO", color=Snow, fontWeight=FontWeight.ExtraBold, fontSize=18.sp)
-                Text("VISION ENGINE  /  v0.6", color=Cyan, fontSize=10.sp, fontWeight=FontWeight.Bold)
+                Text("VISION ENGINE  /  v0.8", color=Cyan, fontSize=10.sp, fontWeight=FontWeight.Bold)
             }
             Tag("BETA", Cyan)
         }
