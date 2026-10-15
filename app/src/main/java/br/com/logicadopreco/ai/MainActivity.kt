@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 val original = PatternEngine().evaluate(result.candles, result.sampledHeight)
                 val expanded = ExpandedPatternEngine().evaluate(result.candles, result.sampledHeight)
                 AnalysisStatus.update(result, original, config.getAsset(), config.getTimeframe(), expanded)
+                VisionAudit.publish(bitmap, config.getCrop(), result)
                 bitmap.recycle()
                 runOnUiThread {
                     Toast.makeText(this, "Print analisado: " + result.candles.size +
@@ -105,9 +106,11 @@ class MainActivity : ComponentActivity() {
                 var timeframe by remember { mutableStateOf(settings.getTimeframe()) }
                 val snap by CaptureStatus.status.collectAsState()
                 val analysis by AnalysisStatus.status.collectAsState()
+                val audit by VisionAudit.state.collectAsState()
                 NexoDashboard(
                     snap = snap,
                     analysis = analysis,
+                    audit = audit,
                     crop = crop,
                     asset = asset,
                     timeframe = timeframe,
@@ -121,6 +124,8 @@ class MainActivity : ComponentActivity() {
                     onShowOverlay = { showOverlay() },
                     onOpenChrome = { openChrome() },
                     onAnalyzeScreenshot = { screenshotPicker.launch("image/*") },
+                    onReviewAudit = { VisionAudit.markResult(it) },
+                    onClearAudit = { VisionAudit.clear() },
                     onExportDiagnostic = { exportDiagnosticCsv() },
                     onNotificationPermission = { requestNotificationPermission() }
                 )

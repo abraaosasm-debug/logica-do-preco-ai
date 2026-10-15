@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,6 +114,7 @@ private fun Metric(title: String, value: String, modifier: Modifier = Modifier) 
 fun NexoDashboard(
     snap: CaptureSnapshot,
     analysis: AnalysisSnapshot,
+    audit: VisionAuditPreview,
     crop: VisionCrop,
     asset: String,
     timeframe: String,
@@ -125,6 +128,8 @@ fun NexoDashboard(
     onShowOverlay: () -> Unit,
     onOpenChrome: () -> Unit,
     onAnalyzeScreenshot: () -> Unit,
+    onReviewAudit: (Boolean) -> Unit,
+    onClearAudit: () -> Unit,
     onExportDiagnostic: () -> Unit,
     onNotificationPermission: () -> Unit
 ) {
@@ -241,6 +246,36 @@ fun NexoDashboard(
                     Action("M1 / M5",modifier=Modifier.weight(1f),
                         onClick={onTimeframeChange(if(timeframe=="M1")"M5" else "M1")})
                 }
+            }
+        }
+
+        if (audit.bitmap != null) {
+            Section {
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Text("AUDITORIA VISUAL",color=Snow,fontSize=14.sp,fontWeight=FontWeight.Bold)
+                    Tag(audit.review, if(audit.review=="PRECISA DE AJUSTES") Amber else Cyan)
+                }
+                Text("O que o detector realmente encontrou neste print:",
+                    color=Muted,fontSize=12.sp)
+                androidx.compose.foundation.Image(
+                    bitmap=audit.bitmap.asImageBitmap(),
+                    contentDescription="Print marcado com os candles que o detector reconheceu",
+                    modifier=Modifier.fillMaxWidth()
+                        .border(1.dp,Edge,RoundedCornerShape(12.dp)),
+                    contentScale=ContentScale.FillWidth
+                )
+                Text(audit.candidates.toString()+" candidatos marcados. "+audit.details,
+                    color=Snow,fontSize=12.sp,lineHeight=17.sp)
+                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Action("CORRETO",modifier=Modifier.weight(1f),
+                        onClick={onReviewAudit(true)})
+                    Action("INCORRETO",modifier=Modifier.weight(1f),
+                        onClick={onReviewAudit(false)})
+                }
+                Action("LIMPAR PRÉVIA",modifier=Modifier.fillMaxWidth(),onClick=onClearAudit)
+                Text("A conferência visual não garante a precisão de alertas de mercado.",
+                    color=Muted,fontSize=11.sp)
             }
         }
 
