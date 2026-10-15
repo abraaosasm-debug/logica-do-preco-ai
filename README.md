@@ -2,7 +2,7 @@
 
 Aplicativo Android nativo para **diagnóstico de captura de tela e painel flutuante** durante o uso de gráficos em navegador.
 
-## Escopo da versão 0.3.0
+## Escopo da versão 0.4.0
 
 - Interface de monitoramento em português (Jetpack Compose).
 - Captura de tela após consentimento explícito via MediaProjection.
@@ -46,11 +46,11 @@ Sem wrapper Gradle neste repositório, por enquanto. O GitHub Actions instala a 
 
 ## Próximas etapas
 
-- **v0.3**: regras testáveis conforme o PDF, incluindo comandos e taxas divididas.
+- **v0.4**: regras testáveis conforme o PDF, incluindo comandos e taxas divididas.
 - **v0.4**: estados dos gatilhos e alertas fundamentados para testes demonstrativos.
 
 
-## Matrizes de reconhecimento adicionais (v0.3)
+## Matrizes de reconhecimento adicionais (v0.4)
 
 Classificador offline independente `ExpandedPatternEngine`:
 - Comandos níveis 1–3 e regiões de abertura / metade / fechamento.
@@ -73,3 +73,17 @@ A fidelidade às 223 páginas do PDF é um objetivo do projeto, não uma funcion
 5. Confira atrasos, perdas de quadros e mudanças de orientação.
 6. Use somente conta demonstrativa durante a validação.
 
+
+
+## Correções v0.4 baseadas em testes no Android
+
+As capturas do usuário mostraram dezenas de candles no gráfico enquanto a v0.3 detectava apenas um. A causa identificada era o agrupamento horizontal de pixels coloridos, que mesclava velas próximas. A v0.4 separa corpos por predominância cromática e continuidade vertical, com testes sintéticos específicos para gráficos densos.
+
+- Opção de perfil Quotex baseado nos prints enviados: recorte 2%–73% horizontal, 30%–73% vertical, editável. É apenas um ponto de partida.
+- Painel expandido reduzido a 244dp para obstruir menos o gráfico.
+- Títulos e informações corrigidos para contraste no tema escuro.
+- Informações de nitidez geométrica **não são acurácia de sinais**. Com menos de oito candles, a indicação é "Dados insuficientes".
+- Instrução para escolher "Tela inteira" ao autorizar captura em Android, evitando suspensão quando o usuário alterna o app e o Chrome.
+- Interface atualizada para v0.4.
+
+**A captura foi comprovada nas imagens enviadas pelo usuário, mas o algoritmo novo AINDA precisa de teste em aparelho.** Compilação e testes sintéticos não validam desempenho na Quotex. Não operar dinheiro real com sinais experimentais.
