@@ -137,3 +137,26 @@ O app agora captura uma série de posições dos candles em horários monotônic
 5. Após comparar timestamps, geométricas e mudanças no gráfico, validar a identificação temporal antes de desbloquear possíveis gatilhos de estudo.
 
 **Não use dinheiro real neste estágio.** A implementação ainda não demonstra alertas com precisão validada.
+
+
+## Plano do Projeto 2: aplicativo Android com visão auditável
+
+Módulos planejados:
+1. Captura MediaProjection autorizada + área de gráfico (ROI).
+2. Detector de candles e geometria aproximada (corpos, pavios, direções).
+3. **Auditoria visual na v0.8**: ao escolher um print da galeria, desenhar a área de leitura e contornos daquilo que o detector interpretou como candle. O usuário pode marcar correto/incorreto; a prévia permanece apenas em memória RAM e pode ser limpa.
+4. Dados rotulados de múltiplos zooms, ativos, cores e orientações para desenvolver modelo de visão computacional treinado (por exemplo TFLite).
+5. Validar timestamps e ciclos, depois avaliar regras fiéis ao PDF.
+6. Alertas explicativos em conta de demonstração, sem executar ordens automáticas.
+
+O ponto 4 e as validações ainda dependem de dados rotulados adicionais.
+As heurísticas existentes **não constituem um modelo de IA treinado**.
+Não afirmamos acurácia, lucro ou confiança em entradas reais.
+
+### Como avaliar detector v0.8
+
+- Abra o aplicativo, escolha **ANALISAR PRINT SALVO** e selecione um print do gráfico (sem informações pessoais).
+- Veja **AUDITORIA VISUAL** logo abaixo de Ferramentas: as marcas verdes/vermelhas representam os candles que o detector identificou.
+- Marque **CORRETO** somente se os corpos e pavios estiverem de fato sobre os candles; do contrário marque **INCORRETO**.
+- Ajuste o perfil de recorte e repita com novos prints; os rótulos são feedback local, não treinamento automático.
+- Não utilize possíveis padrões experimentais para arriscar capital real.
