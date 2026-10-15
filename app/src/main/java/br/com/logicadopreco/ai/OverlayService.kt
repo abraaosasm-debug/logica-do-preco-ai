@@ -29,6 +29,7 @@ class OverlayService : Service() {
     private var statusText: TextView? = null
     private var frameText: TextView? = null
     private var analysisText: TextView? = null
+    private val overlayPrefs by lazy { getSharedPreferences("overlay_layout", MODE_PRIVATE) }
     private var expanded = false
     private var params: WindowManager.LayoutParams? = null
 
@@ -132,7 +133,7 @@ class OverlayService : Service() {
         details = body
         container = root
         val layout = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            dp(120),
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -140,8 +141,8 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = dp(12)
-            y = dp(105)
+            x = overlayPrefs.getInt("x", dp(12))
+            y = overlayPrefs.getInt("y", dp(105))
         }
         params = layout
 
@@ -176,6 +177,9 @@ class OverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    if (dragging) {
+                        overlayPrefs.edit().putInt("x", layout.x).putInt("y", layout.y).apply()
+                    }
                     if (!dragging) {
                         expanded = !expanded
                         body.visibility = if (expanded) View.VISIBLE else View.GONE
@@ -191,12 +195,20 @@ class OverlayService : Service() {
         windowManager.addView(root, layout)
         scope.launch {
             AnalysisStatus.status.collectLatest { snapshot ->
-                analysisText?.text = "Candles: " + snapshot.candles +
-                    "  |  Leitura: " + snapshot.quality + "%\n" +
-                    "Situação: " + snapshot.phase +
-                    if (snapshot.direction != "NEUTRO")
-                        "\nPOSSÍVEL " + snapshot.direction + " (observação)\n" + snapshot.detail
-                    else "\n" + snapshot.pattern + "\n" + snapshot.detail
+                val stale = snapshot.lastUpdateMs != 0L &&
+                    AnalysisStatus.ageMs() > 5000L
+                analysisText?.text = if (stale) {
+                    "CAPTURA DESATUALIZADA\nSem informação operacional confiável"
+                } else {
+                    "Candles: " + snapshot.candles +
+                        "  | Leitura: " + snapshot.quality + "%\n" +
+                        "Estado: " + snapshot.phase +
+                        "\nCenário: " + snapshot.environment +
+                        if (snapshot.direction != "NEUTRO")
+                            "\nPossível " + snapshot.direction + " (NÃO VALIDADO)\n" +
+                                snapshot.detail
+                        else "\n" + snapshot.pattern + "\n" + snapshot.detail
+                }
             }
         }
         scope.launch {
@@ -213,6 +225,10 @@ class OverlayService : Service() {
     private fun updateSize() {
         val current = container ?: return
         val layout = params ?: return
+        layout.width = if (expanded) dp(292) else dp(120)
+        val available = resources.displayMetrics.widthPixels - dp(8)
+        layout.width = layout.width.coerceAtMost(available.coerceAtLeast(dp(120)))
+        layout.x = layout.x.coerceIn(0, (resources.displayMetrics.widthPixels - layout.width).coerceAtLeast(0))
         windowManager.updateViewLayout(current, layout)
     }
 
