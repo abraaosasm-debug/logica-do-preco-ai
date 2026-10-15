@@ -94,7 +94,7 @@ class OverlayService : Service() {
         frameText = text("Sem quadros recebidos", 12f, "#94A3B8")
         val interpretation = text("Padrões: aguardando leitura...", 12f, "#38BDF8")
         analysisText = interpretation
-        val disclaimer = text("Somente estudo • NÃO é ordem nem previsão validada", 11f, "#FBBF24")
+        val disclaimer = text("ESTUDO • Sem sinais validados", 11f, "#FBBF24")
 
         body.addView(statusText)
         body.addView(frameText)
@@ -198,26 +198,24 @@ class OverlayService : Service() {
                 val stale = snapshot.lastUpdateMs != 0L &&
                     AnalysisStatus.ageMs() > 5000L
                 analysisText?.text = if (stale) {
-                    "CAPTURA DESATUALIZADA\nSem informação operacional confiável"
+                    "CAPTURA DESATUALIZADA\nObservações suspensas"
                 } else {
                     "Candles: " + snapshot.candles +
-                        "  | Leitura: " + snapshot.quality + "%\n" +
-                        "Estado: " + snapshot.phase +
-                        "\nCenário: " + snapshot.environment +
+                        if (snapshot.candles >= 8) " | Nitidez: " + snapshot.quality + "%" else " | Calibrar" +
+                        "\nEstado: " + snapshot.phase +
                         if (snapshot.direction != "NEUTRO")
-                            "\nPossível " + snapshot.direction + " (NÃO VALIDADO)\n" +
-                                snapshot.detail
-                        else "\n" + snapshot.pattern + "\n" + snapshot.detail
+                            "\nPossível " + snapshot.direction + " (não validado)\n" +
+                                snapshot.pattern
+                        else "\n" + snapshot.pattern +
+                            if (snapshot.candles < 8) "\n" + snapshot.detail else ""
                 }
             }
         }
         scope.launch {
             CaptureStatus.status.collectLatest { snapshot ->
-                statusText?.text = "Estado: ${snapshot.phase}"
-                frameText?.text = "Quadros: ${snapshot.frameCount}\n" +
-                    "FPS: ${"%.1f".format(snapshot.fps)}   " +
-                    "Imagem: ${snapshot.width} × ${snapshot.height}\n" +
-                    "Brilho médio: ${snapshot.meanBrightness?.toString() ?: "—"}"
+                statusText?.text = "Captura real • sem operações automáticas"
+                frameText?.text = "Captura: ${snapshot.phase}" +
+                    " • FPS: ${"%.0f".format(snapshot.fps)}"
             }
         }
     }
@@ -225,7 +223,7 @@ class OverlayService : Service() {
     private fun updateSize() {
         val current = container ?: return
         val layout = params ?: return
-        layout.width = if (expanded) dp(292) else dp(120)
+        layout.width = if (expanded) dp(244) else dp(120)
         val available = resources.displayMetrics.widthPixels - dp(8)
         layout.width = layout.width.coerceAtMost(available.coerceAtLeast(dp(120)))
         layout.x = layout.x.coerceIn(0, (resources.displayMetrics.widthPixels - layout.width).coerceAtLeast(0))
