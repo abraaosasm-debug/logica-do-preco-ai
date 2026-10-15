@@ -99,90 +99,15 @@ class MarketVision {
                 for (x in 0 until w) classes[y * w + x] = 0
             }
         }
-        val colCount = IntArray(w)
-        for (y in 0 until h) {
-            val base = y * w
-            for (x in 0 until w) if (classes[base + x] != 0.toByte()) colCount[x]++
-        }
-
-        val groups = ArrayList<IntRange>()
-        var start = -1
-        var last = -1
-        for (x in 0 until w) {
-            if (colCount[x] >= 2) {
-                if (start < 0) start = x
-                last = x
-            } else if (start >= 0 && x - last > 2) {
-                groups.add(start..last)
-                start = -1
-            }
-        }
-        if (start >= 0) groups.add(start..last)
-
-        val candles = ArrayList<VisionCandle>()
-        for (range in groups) {
-            val gx0 = range.first
-            val gx1 = range.last
-            val groupWidth = gx1 - gx0 + 1
-            // Retira trechos largos que costumam ser textos, botões ou faixas.
-            if (groupWidth < 2 || groupWidth > w * 0.09) continue
-            var greens = 0
-            var reds = 0
-            for (x in gx0..gx1) for (y in 0 until h) {
-                when (classes[y*w+x].toInt()) {
-                    1 -> greens++
-                    -1 -> reds++
-                }
-            }
-            val count = greens + reds
-            if (count < 10) continue
-            val isUp = greens > reds
-            val majority = max(greens, reds).toDouble() / count
-            if (majority < 0.83) continue
-            val sign = if (isUp) 1 else -1
-
-            var highY = h
-            var lowY = -1
-            var openBody = h
-            var closeBody = -1
-            var bodyPixels = 0
-            val minBodyPixels = max(2, (groupWidth * 0.52).toInt())
-            for (y in 0 until h) {
-                var pixelsInRow = 0
-                for (x in gx0..gx1) if (classes[y*w+x].toInt() == sign) pixelsInRow++
-                if (pixelsInRow > 0) {
-                    highY = min(highY, y)
-                    lowY = max(lowY, y)
-                }
-                if (pixelsInRow >= minBodyPixels) {
-                    openBody = min(openBody, y)
-                    closeBody = max(closeBody, y)
-                    bodyPixels++
-                }
-            }
-            if (highY >= h || lowY <= highY || openBody >= h ||
-                closeBody < openBody || bodyPixels < 2) continue
-            val bodyTop = openBody
-            val bodyBottom = closeBody
-            val bodyHeight = bodyBottom - bodyTop
-            if (bodyHeight < 2) continue
-            val up = isUp
-            val quality = (0.5 * majority + 0.25 * min(1.0, groupWidth / 5.0)
-                + 0.25 * min(1.0, bodyHeight / 9.0)).coerceIn(0.0, 1.0)
-            candles.add(VisionCandle(
-                x = (gx0 + gx1) / 2, up = up,
-                openY = if (up) bodyBottom else bodyTop,
-                closeY = if (up) bodyTop else bodyBottom,
-                highY = highY, lowY = lowY,
-                bodyWidth = groupWidth, quality = quality
-            ))
-        }
+        // Cada corpo é segmentado independentemente. A versão antiga juntava
+        // muitas velas próximas em um único grupo colorido.
+        val candles = CandleSegmenter.detect(classes, w, h)
 
         // Descarta padrões pouco densos e cenários não calibrados.
         val reason = when {
             candles.size < 6 -> "Poucos candles identificados. Calibre o recorte e a paleta verde/vermelha."
             candles.size > 90 -> "Muitos objetos detectados: verifique o recorte."
-            else -> "Candles coloridos detectados; confira a calibração visual."
+            else -> "Corpos visuais separados: ${candles.size}. Confirmar com o gráfico real."
         }
         return Result(candles.sortedBy { it.x }, w, h, colored, reason)
     }
