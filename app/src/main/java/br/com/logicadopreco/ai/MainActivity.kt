@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private var overlayGranted by mutableStateOf(false)
@@ -60,9 +61,21 @@ class MainActivity : ComponentActivity() {
         overlayGranted = Settings.canDrawOverlays(this)
         setContent {
             LpTheme {
+                val settings = remember { VisionSettings(applicationContext) }
+                var crop by remember { mutableStateOf(settings.getCrop()) }
+                var asset by remember { mutableStateOf(settings.getAsset()) }
+                var timeframe by remember { mutableStateOf(settings.getTimeframe()) }
                 val snap by CaptureStatus.status.collectAsState()
+                val analysis by AnalysisStatus.status.collectAsState()
                 MainScreen(
                     snap = snap,
+                    analysis = analysis,
+                    crop = crop,
+                    asset = asset,
+                    timeframe = timeframe,
+                    onCropChange = { next -> crop = next; settings.setCrop(next) },
+                    onAssetChange = { next -> asset = next; settings.setAsset(next) },
+                    onTimeframeChange = { next -> timeframe = next; settings.setTimeframe(next) },
                     overlayGranted = overlayGranted,
                     onOverlayPermission = { requestOverlayPermission() },
                     onStart = { requestScreenCapture() },
@@ -158,6 +171,13 @@ private fun LpTheme(content: @Composable () -> Unit) {
 @Composable
 private fun MainScreen(
     snap: CaptureSnapshot,
+    analysis: AnalysisSnapshot,
+    crop: VisionCrop,
+    asset: String,
+    timeframe: String,
+    onCropChange: (VisionCrop) -> Unit,
+    onAssetChange: (String) -> Unit,
+    onTimeframeChange: (String) -> Unit,
     overlayGranted: Boolean,
     onOverlayPermission: () -> Unit,
     onStart: () -> Unit,
@@ -262,7 +282,82 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("03  Procedimento de teste", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("03  Análise real — experimental", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.height(9.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Candles detectados: " + analysis.candles, color = TextPrimary, fontSize = 13.sp,
+                    modifier = Modifier.weight(1f))
+                Text("Leitura: " + analysis.quality + "%", color = Accent, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("Situação: " + analysis.phase, color = if (analysis.direction != "NEUTRO") Positive else Warning,
+                fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("Padrão: " + analysis.pattern, color = TextPrimary, fontSize = 13.sp)
+            if (analysis.direction != "NEUTRO") {
+                Text("Possível " + analysis.direction + " — apenas observação",
+                    color = if (analysis.direction == "CALL") Positive else Color(0xFFF87171),
+                    fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(analysis.detail, color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+            Spacer(Modifier.height(6.dp))
+            Text("Quadros processados: " + analysis.analyzedFrames,
+                color = TextMuted, fontSize = 11.sp)
+        }
+
+        Panel {
+            Text("04  Calibrar área do gráfico", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.height(8.dp))
+            Text("Selecione somente a região dos candles, sem botões, preços, menu ou painel LP AI. " +
+                "Ajuste os percentuais, volte ao Chrome e confira a quantidade detectada.",
+                color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+            Spacer(Modifier.height(8.dp))
+            CropSlider("Borda esquerda", crop.left, 0, crop.right - 20) {
+                onCropChange(crop.copy(left = it))
+            }
+            CropSlider("Borda direita", crop.right, crop.left + 20, 100) {
+                onCropChange(crop.copy(right = it))
+            }
+            CropSlider("Borda superior", crop.top, 0, crop.bottom - 20) {
+                onCropChange(crop.copy(top = it))
+            }
+            CropSlider("Borda inferior", crop.bottom, crop.top + 20, 100) {
+                onCropChange(crop.copy(bottom = it))
+            }
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = asset,
+                onValueChange = { onAssetChange(it) },
+                label = { Text("Nome do ativo (informado manualmente)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Timeframe selecionado:", fontSize = 12.sp, color = TextMuted)
+                OutlinedButton(onClick = {
+                    onTimeframeChange(if (timeframe == "M1") "M5" else "M1")
+                }) { Text(timeframe) }
+            }
+            Text("O aplicativo ainda não lê automaticamente o ativo nem sincroniza " +
+                "o início dos candles com o relógio da corretora.",
+                color = Warning, fontSize = 11.sp, lineHeight = 17.sp)
+        }
+
+        Panel {
+            Text("05  Histórico da sessão", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            if (analysis.events.isEmpty()) {
+                Text("Sem observações registradas.", color = TextMuted, fontSize = 12.sp)
+            } else {
+                analysis.events.take(10).forEach { event ->
+                    Text(event, color = TextMuted, fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 4.dp))
+                }
+            }
+        }
+
+        Panel {
+            Text("06  Procedimento de teste", fontWeight = FontWeight.Bold, fontSize = 17.sp)
             Spacer(Modifier.height(8.dp))
             Step("1", "Autorize a sobreposição.")
             Step("2", "Inicie a captura e confirme o diálogo do Android.")
@@ -275,9 +370,10 @@ private fun MainScreen(
             Text("Limite técnico desta versão", fontWeight = FontWeight.Bold, color = Warning)
             Spacer(Modifier.height(6.dp))
             Text(
-                "O diagnóstico usa quadros capturados de verdade. Esta versão NÃO " +
-                    "reconhece candles, padrões, CALL ou PUT e NÃO envia ordens. " +
-                    "Não use o protótipo como fonte de sinais financeiros.",
+                "O reconhecimento de candles é experimental. Padrões e possíveis CALL/PUT " +
+                    "são apenas observações não validadas. NÃO há integração de cotações, " +
+                    "sincronização de segundos nem execução automática. " +
+                    "Não use os alertas para arriscar dinheiro real.",
                 color = TextMuted, fontSize = 13.sp, lineHeight = 20.sp
             )
         }
@@ -318,5 +414,21 @@ private fun Step(number: String, instruction: String) {
     Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(number, color = Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         Text(instruction, color = TextMuted, fontSize = 13.sp, lineHeight = 18.sp)
+    }
+}
+
+@Composable
+private fun CropSlider(label: String, value: Int, low: Int, high: Int, onChange: (Int) -> Unit) {
+    Column {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = TextMuted, fontSize = 12.sp)
+            Text(value.toString() + "%", color = TextPrimary, fontSize = 12.sp)
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = low.toFloat()..high.toFloat(),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
