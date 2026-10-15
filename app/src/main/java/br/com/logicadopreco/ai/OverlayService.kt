@@ -28,6 +28,7 @@ class OverlayService : Service() {
     private var details: LinearLayout? = null
     private var statusText: TextView? = null
     private var frameText: TextView? = null
+    private var analysisText: TextView? = null
     private var expanded = false
     private var params: WindowManager.LayoutParams? = null
 
@@ -90,10 +91,13 @@ class OverlayService : Service() {
         }
         statusText = text("Aguardando captura...", 13f, "#E2E8F0")
         frameText = text("Sem quadros recebidos", 12f, "#94A3B8")
-        val disclaimer = text("Diagnóstico real • Sem sinais na v0.1", 11f, "#FBBF24")
+        val interpretation = text("Padrões: aguardando leitura...", 12f, "#38BDF8")
+        analysisText = interpretation
+        val disclaimer = text("Somente estudo • NÃO é ordem nem previsão validada", 11f, "#FBBF24")
 
         body.addView(statusText)
         body.addView(frameText)
+        body.addView(interpretation)
         body.addView(disclaimer)
 
         val actionRow = LinearLayout(this).apply {
@@ -185,6 +189,16 @@ class OverlayService : Service() {
         }
 
         windowManager.addView(root, layout)
+        scope.launch {
+            AnalysisStatus.status.collectLatest { snapshot ->
+                analysisText?.text = "Candles: " + snapshot.candles +
+                    "  |  Leitura: " + snapshot.quality + "%\n" +
+                    "Situação: " + snapshot.phase +
+                    if (snapshot.direction != "NEUTRO")
+                        "\nPOSSÍVEL " + snapshot.direction + " (observação)\n" + snapshot.detail
+                    else "\n" + snapshot.pattern + "\n" + snapshot.detail
+            }
+        }
         scope.launch {
             CaptureStatus.status.collectLatest { snapshot ->
                 statusText?.text = "Estado: ${snapshot.phase}"
