@@ -4,15 +4,15 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /** Valores percentuais da área EXCLUSIVA dos candles. */
-data class VisionCrop(val left: Int = 5, val top: Int = 18, val right: Int = 88, val bottom: Int = 78) {
+data class VisionCrop(val left: Int = 2, val top: Int = 30, val right: Int = 73, val bottom: Int = 73) {
     val valid: Boolean get() = right - left >= 20 && bottom - top >= 20
 }
 
 class VisionSettings(context: Context) {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences("vision_config", Context.MODE_PRIVATE)
     fun getCrop() = VisionCrop(
-        prefs.getInt("left", 5), prefs.getInt("top", 18),
-        prefs.getInt("right", 88), prefs.getInt("bottom", 78)
+        prefs.getInt("left", 2), prefs.getInt("top", 30),
+        prefs.getInt("right", 73), prefs.getInt("bottom", 73)
     )
     fun setCrop(value: VisionCrop) {
         prefs.edit().putInt("left", value.left).putInt("top", value.top)
