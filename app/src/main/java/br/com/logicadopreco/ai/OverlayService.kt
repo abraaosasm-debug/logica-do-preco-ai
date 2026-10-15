@@ -4,10 +4,14 @@ import android.app.Service
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.IBinder
 import android.provider.Settings
-import android.view.*
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.coroutines.*
@@ -15,7 +19,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** Janela arrastável sobre o Chrome. Sem acesso aos controles da corretora. */
+/**
+ * Indicador flutuante de leitura gráfica.
+ * Não emite ordens e nunca transforma padrões experimentais em "OPERAR".
+ */
 class OverlayService : Service() {
     companion object {
         const val ACTION_SHOW = "br.com.logicadopreco.ai.OVERLAY_SHOW"
@@ -23,101 +30,119 @@ class OverlayService : Service() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private lateinit var windowManager: WindowManager
-    private var container: LinearLayout? = null
-    private var details: LinearLayout? = null
-    private var statusText: TextView? = null
-    private var frameText: TextView? = null
-    private var analysisText: TextView? = null
-    private val overlayPrefs by lazy { getSharedPreferences("overlay_layout", MODE_PRIVATE) }
-    private var expanded = false
+    private lateinit var manager: WindowManager
+    private val prefs by lazy { getSharedPreferences("overlay_layout", MODE_PRIVATE) }
+    private var root: LinearLayout? = null
+    private var panel: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
+    private var expanded = false
+
+    private var miniStatus: TextView? = null
+    private var label: TextView? = null
+    private var headline: TextView? = null
+    private var reason: TextView? = null
+    private var setup: TextView? = null
+    private var context: TextView? = null
+    private var badge: TextView? = null
+    private var dataState: TextView? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_HIDE) {
+        if (intent?.action == ACTION_HIDE || !Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!Settings.canDrawOverlays(this)) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        if (container == null) createOverlay()
+        if (root == null) buildOverlay()
         return START_NOT_STICKY
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
-    private fun rounded(color: String, radius: Float = 18f) = GradientDrawable().apply {
-        setColor(Color.parseColor(color))
-        cornerRadius = dp(radius.roundToInt()).toFloat()
-        setStroke(dp(1), Color.parseColor("#334155"))
-    }
+    private fun shape(bg: String, border: String = "#324257", radius: Int = 18): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(Color.parseColor(bg))
+            cornerRadius = dp(radius).toFloat()
+            setStroke(dp(1), Color.parseColor(border))
+        }
 
-    private fun text(value: String, size: Float, color: String, bold: Boolean = false) =
+    private fun text(value: String, size: Float, color: String, strong: Boolean = false): TextView =
         TextView(this).apply {
-            text = value
+            this.text = value
             textSize = size
             setTextColor(Color.parseColor(color))
-            if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER_VERTICAL
+            if (strong) setTypeface(typeface, Typeface.BOLD)
+            includeFontPadding = true
         }
 
-    private fun createOverlay() {
-        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-
-        val root = LinearLayout(this).apply {
+    private fun buildOverlay() {
+        manager = getSystemService(WINDOW_SERVICE) as WindowManager
+        val outer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded("#0B1220")
-            elevation = dp(9).toFloat()
+            background = shape("#101825", "#41506A", 18)
+            elevation = dp(8).toFloat()
             setPadding(dp(12), dp(10), dp(12), dp(10))
         }
-
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        val handle = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            minimumHeight = dp(38)
         }
-        val title = text("◉  LP AI", 15f, "#38BDF8", true)
-        header.addView(title)
-        val chevron = text("   ▸", 16f, "#F1F5F9", true)
-        header.addView(chevron)
-        root.addView(header)
+        val brand = text("▰  LP", 14f, "#67D3F5", true)
+        handle.addView(brand)
+        miniStatus = text("   AGUARDAR", 12f, "#FBBF24", true).apply {
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+        }
+        handle.addView(miniStatus, LinearLayout.LayoutParams(0, dp(38), 1f))
+        outer.addView(handle, LinearLayout.LayoutParams(-1, dp(38)))
 
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
-            setPadding(0, dp(10), 0, 0)
+            setPadding(dp(1), dp(8), dp(1), dp(2))
         }
-        statusText = text("Aguardando captura...", 13f, "#E2E8F0")
-        frameText = text("Sem quadros recebidos", 12f, "#94A3B8")
-        val interpretation = text("Padrões: aguardando leitura...", 12f, "#38BDF8")
-        analysisText = interpretation
-        val disclaimer = text("ESTUDO • Sem sinais validados", 11f, "#FBBF24")
 
-        body.addView(statusText)
-        body.addView(frameText)
-        body.addView(interpretation)
-        body.addView(disclaimer)
+        label = text("LEITURA DO GRÁFICO", 10f, "#AAB9CE", true)
+        body.addView(label)
+        headline = text("AGUARDAR", 25f, "#FBBF24", true).apply {
+            setPadding(0, dp(6), 0, dp(3))
+        }
+        body.addView(headline)
+        reason = text("Aguardando dados do gráfico.", 12f, "#F3F6FB")
+        body.addView(reason)
 
-        val actionRow = LinearLayout(this).apply {
+        val separator = View(this).apply { setBackgroundColor(Color.parseColor("#334255")) }
+        body.addView(separator, LinearLayout.LayoutParams(-1, dp(1)).apply {
+            topMargin = dp(12)
+            bottomMargin = dp(12)
+        })
+
+        setup = text("Ativo não selecionado • M1", 12f, "#D7E2EF", true)
+        body.addView(setup)
+        context = text("Nenhuma leitura confirmada", 12f, "#BCCADA").apply {
+            setPadding(0, dp(5), 0, dp(8))
+        }
+        body.addView(context)
+        dataState = text("FONTE: AGUARDANDO", 10f, "#88A4C2", true)
+        body.addView(dataState)
+
+        val footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
+            setPadding(0, dp(12), 0, 0)
         }
+        badge = text("ESTUDO", 10f, "#FBBF24", true)
+        footer.addView(badge, LinearLayout.LayoutParams(0, dp(34), 1f))
 
-        val hideButton = text("MINIMIZAR", 11f, "#38BDF8", true).apply {
-            setPadding(dp(4), dp(6), dp(15), dp(6))
-            setOnClickListener {
-                expanded = false
-                body.visibility = View.GONE
-                chevron.text = "   ▸"
-                updateSize()
-            }
+        val collapse = text("RECOLHER", 10f, "#67D3F5", true).apply {
+            setPadding(dp(4), 0, dp(10), 0)
+            gravity = Gravity.CENTER
+            setOnClickListener { setExpanded(false) }
         }
-        val stopButton = text("ENCERRAR", 11f, "#F87171", true).apply {
-            setPadding(dp(4), dp(6), dp(4), dp(6))
+        val stop = text("PARAR", 10f, "#F38B92", true).apply {
+            setPadding(dp(5), 0, 0, 0)
+            gravity = Gravity.CENTER
             setOnClickListener {
                 startService(Intent(this@OverlayService, CaptureService::class.java).apply {
                     action = CaptureService.ACTION_STOP
@@ -125,116 +150,109 @@ class OverlayService : Service() {
                 stopSelf()
             }
         }
-        actionRow.addView(hideButton)
-        actionRow.addView(stopButton)
-        body.addView(actionRow)
-        root.addView(body)
+        footer.addView(collapse, LinearLayout.LayoutParams(-2, dp(38)))
+        footer.addView(stop, LinearLayout.LayoutParams(-2, dp(38)))
+        body.addView(footer)
 
-        details = body
-        container = root
-        val layout = WindowManager.LayoutParams(
-            dp(120),
-            WindowManager.LayoutParams.WRAP_CONTENT,
+        outer.addView(body, LinearLayout.LayoutParams(-1, -2))
+        root = outer
+        panel = body
+
+        val lp = WindowManager.LayoutParams(
+            dp(174), -2,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = overlayPrefs.getInt("x", dp(12))
-            y = overlayPrefs.getInt("y", dp(105))
+            x = prefs.getInt("x", dp(12))
+            y = prefs.getInt("y", dp(90))
         }
-        params = layout
+        params = lp
 
-        var beginX = 0f
-        var beginY = 0f
+        var downX = 0f
+        var downY = 0f
         var initialX = 0
         var initialY = 0
-        var dragging = false
-
-        header.setOnTouchListener { _, event ->
+        var dragged = false
+        handle.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    beginX = event.rawX
-                    beginY = event.rawY
-                    initialX = layout.x
-                    initialY = layout.y
-                    dragging = false
+                    downX = event.rawX
+                    downY = event.rawY
+                    initialX = lp.x
+                    initialY = lp.y
+                    dragged = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - beginX
-                    val dy = event.rawY - beginY
-                    if (abs(dx) > dp(6) || abs(dy) > dp(6)) dragging = true
-                    if (dragging) {
-                        val screen = resources.displayMetrics
-                        layout.x = (initialX + dx).roundToInt()
-                            .coerceIn(0, (screen.widthPixels - dp(80)).coerceAtLeast(0))
-                        layout.y = (initialY + dy).roundToInt()
-                            .coerceIn(0, (screen.heightPixels - dp(80)).coerceAtLeast(0))
-                        windowManager.updateViewLayout(root, layout)
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (abs(dx) > dp(6) || abs(dy) > dp(6)) dragged = true
+                    if (dragged) {
+                        val bounds = resources.displayMetrics
+                        lp.x = (initialX + dx).roundToInt()
+                            .coerceIn(0, (bounds.widthPixels - lp.width).coerceAtLeast(0))
+                        lp.y = (initialY + dy).roundToInt()
+                            .coerceIn(0, (bounds.heightPixels - dp(70)).coerceAtLeast(0))
+                        manager.updateViewLayout(outer, lp)
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (dragging) {
-                        overlayPrefs.edit().putInt("x", layout.x).putInt("y", layout.y).apply()
-                    }
-                    if (!dragging) {
-                        expanded = !expanded
-                        body.visibility = if (expanded) View.VISIBLE else View.GONE
-                        chevron.text = if (expanded) "   ▾" else "   ▸"
-                        updateSize()
-                    }
+                    if (dragged) prefs.edit().putInt("x", lp.x).putInt("y", lp.y).apply()
+                    else setExpanded(!expanded)
                     true
                 }
                 else -> false
             }
         }
 
-        windowManager.addView(root, layout)
+        manager.addView(outer, lp)
         scope.launch {
-            AnalysisStatus.status.collectLatest { snapshot ->
-                val stale = snapshot.lastUpdateMs != 0L &&
-                    AnalysisStatus.ageMs() > 5000L
-                val qualityLabel = if (snapshot.candles >= 8)
-                    "Nitidez: ${snapshot.quality}%" else "Dados insuficientes"
-                val patternLabel = if (snapshot.direction != "NEUTRO") {
-                    "Possível ${snapshot.direction} (não validado)\n${snapshot.pattern}"
-                } else snapshot.pattern + if (snapshot.candles < 8) "\n${snapshot.detail}" else ""
-                analysisText?.text = if (stale) {
-                    "CAPTURA DESATUALIZADA\nObservações suspensas"
-                } else {
-                    "Candles: ${snapshot.candles} • $qualityLabel\n" +
-                        "Estado: ${snapshot.phase}\n$patternLabel"
-                }
-            }
+            AnalysisStatus.status.collectLatest { refresh() }
         }
         scope.launch {
-            CaptureStatus.status.collectLatest { snapshot ->
-                statusText?.text = "Captura real • sem operações automáticas"
-                frameText?.text = "Captura: ${snapshot.phase}" +
-                    " • FPS: ${"%.0f".format(snapshot.fps)}"
-            }
+            CaptureStatus.status.collectLatest { refresh() }
         }
+        refresh()
     }
 
-    private fun updateSize() {
-        val current = container ?: return
-        val layout = params ?: return
-        layout.width = if (expanded) dp(244) else dp(120)
-        val available = resources.displayMetrics.widthPixels - dp(8)
-        layout.width = layout.width.coerceAtMost(available.coerceAtLeast(dp(120)))
-        layout.x = layout.x.coerceIn(0, (resources.displayMetrics.widthPixels - layout.width).coerceAtLeast(0))
-        windowManager.updateViewLayout(current, layout)
+    private fun setExpanded(value: Boolean) {
+        expanded = value
+        panel?.visibility = if (expanded) View.VISIBLE else View.GONE
+        val lp = params ?: return
+        lp.width = if (expanded) dp(264) else dp(174)
+        lp.width = lp.width.coerceAtMost((resources.displayMetrics.widthPixels - dp(12)).coerceAtLeast(dp(140)))
+        lp.x = lp.x.coerceIn(0, (resources.displayMetrics.widthPixels - lp.width).coerceAtLeast(0))
+        root?.let { manager.updateViewLayout(it, lp) }
+    }
+
+    private fun refresh() {
+        if (root == null) return
+        val analysis = AnalysisStatus.status.value
+        val capture = CaptureStatus.status.value
+        val state = IndicatorPresenter.show(analysis, capture, AnalysisStatus.ageMs())
+        miniStatus?.text = if (state.headline == "AGUARDAR") "AGUARDAR" else state.headline
+        miniStatus?.setTextColor(Color.parseColor(state.statusColor))
+        label?.text = state.title
+        headline?.text = state.headline
+        headline?.setTextColor(Color.parseColor(state.statusColor))
+        reason?.text = state.reason
+        setup?.text = state.setup
+        context?.text = state.context
+        dataState?.text = state.capture
+        badge?.text = state.badge
+        badge?.setTextColor(Color.parseColor(state.statusColor))
     }
 
     override fun onDestroy() {
         scope.cancel()
-        container?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) { }
+        root?.let {
+            try { manager.removeView(it) } catch (_: Exception) { }
         }
-        container = null
+        root = null
         super.onDestroy()
     }
 }
