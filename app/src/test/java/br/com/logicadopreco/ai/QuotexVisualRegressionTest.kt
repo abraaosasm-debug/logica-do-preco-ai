@@ -33,7 +33,7 @@ class QuotexVisualRegressionTest {
             "Movs0+12YVfl7Bk7duzYi+wZe9Psd03s2IvohccCYO+SPZfZb/86/gnsHbHn0ily0xuF55dfrFrZU4k9L4726dkT2Nse8tjDs08n",
             "bNixY8eOHTt27NixC7t6YJ/8J+zYsffBnrEHZH97jRP2vtkH7NixY8eOXdhVN3ueXMb2/CyktZtUYO+APY221bDHYR/9Gfag7LPb",
             "h7677yT29tlnFz+8Pf0de7Pw9/l6+bOwgoq97SZnSg9vjqZj75Y9bWZP2AOzC7tan+dZEtiFXdiFXdjV4ladRYBd2IVdkiRJkiRJ",
-            "kiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJ",
+            "kiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJkiRJ",
             "kiRJkiRJknR6fwCVXD/I"
         ).joinToString("")
         val raw = InflaterInputStream(
