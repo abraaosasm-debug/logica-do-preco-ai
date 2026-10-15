@@ -102,3 +102,16 @@ ser expandido. A tela principal continua responsável por FPS, erros e calibraç
 **Não apresenta "OPERAR AGORA"**: os timestamps e dados de candles da Quotex
 continuam não validados e por isso possíveis CALL/PUT permanecem em estudo. Há testes
 unitários demonstrando que padrões visuais não se tornam autorizações de entrada.
+
+
+## LP Vision v0.6 — atualização visual
+
+- Nova identidade de produto com logotipo de candles estilizados e uma paleta premium em azul-petróleo, ciano, grafite e verde claro.
+- Nova tela inicial de leitura com estado visível, ações principais e mini métricas.
+- Configuração do recorte, ativo e tempo gráfico movidas para uma área recolhível.
+- Diagnósticos técnicos recolhíveis para não poluir a operação visual.
+- Indicador flutuante próprio, com cartão pequeno, expansão contextual e ação DETALHES que retorna à tela principal.
+- Nenhum componente exibe compra/venda como recomendação confirmada, pois não existe validação temporal / OHLC da Quotex.
+- O reconhecimento visual continua experimental. Não é uma ferramenta aprovada para risco de capital real.
+
+A compilação e os testes unitários precisam passar para gerar a Release. O funcionamento visual final só poderá ser confirmado em testes no celular.
