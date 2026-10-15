@@ -51,6 +51,7 @@ class CaptureService : Service() {
                     "SEM QUADROS",
                     "Mais de 5 segundos sem imagem nova. Verifique o compartilhamento."
                 )
+                AnalysisStatus.error("Sem quadros recentes. Análise suspensa.")
             }
             mainHandler.postDelayed(this, 2000L)
         }
@@ -250,6 +251,7 @@ class CaptureService : Service() {
         projection = null
         try { oldProjection?.stop() } catch (_: Exception) { }
         stopService(Intent(this, OverlayService::class.java))
+        AnalysisStatus.stop()
         if (CaptureStatus.status.value.phase != "ERRO") {
             CaptureStatus.stop()
         }
