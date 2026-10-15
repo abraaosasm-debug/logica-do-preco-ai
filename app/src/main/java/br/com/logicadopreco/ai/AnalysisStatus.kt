@@ -20,7 +20,12 @@ data class AnalysisSnapshot(
     val environment: String = "SEM DADOS",
     val evidence: List<String> = emptyList(),
     val limitations: String = "Leitura visual ainda não validada",
-    val ruleCount: Int = 0
+    val ruleCount: Int = 0,
+    val clockPhase: String = "NÃO SINCRONIZADO",
+    val clockDetail: String = "Aguardando medir a formação de candles.",
+    val clockCycles: Int = 0,
+    val clockRollovers: Int = 0,
+    val afterCandidateBoundaryMs: Long? = null
 )
 
 object AnalysisStatus {
@@ -31,7 +36,7 @@ object AnalysisStatus {
 
     @Synchronized
     fun update(vision: MarketVision.Result, reading: PatternReading, asset: String, timeframe: String,
-               study: StudyResult) {
+               study: StudyResult, timeline: TimelineReading? = null) {
         val now = SystemClock.elapsedRealtime()
         val quality = if (vision.candles.isEmpty()) 0
             else (vision.candles.map { it.quality }.average() * 100).toInt()
@@ -70,7 +75,12 @@ object AnalysisStatus {
                 it.type + " • " + it.direction + " • " + it.pageHint
             } else emptyList(),
             limitations = study.caution,
-            ruleCount = study.evidence.size
+            ruleCount = study.evidence.size,
+            clockPhase = timeline?.phase ?: "PRINT ESTÁTICO",
+            clockDetail = timeline?.detail ?: "A imagem isolada não contém tempo de formação observado.",
+            clockCycles = timeline?.validIntervals ?: 0,
+            clockRollovers = timeline?.rollovers ?: 0,
+            afterCandidateBoundaryMs = timeline?.ageMs
         )
     }
 
@@ -78,7 +88,8 @@ object AnalysisStatus {
     fun error(reason: String) {
         mutable.value = mutable.value.copy(
             phase = "INDETERMINADO", direction = "NEUTRO",
-            pattern = "—", detail = reason, evidence = emptyList(), ruleCount = 0
+            pattern = "—", detail = reason, evidence = emptyList(), ruleCount = 0,
+            clockPhase = "SEM LEITURA", clockDetail = reason, clockCycles = 0
         )
     }
 
@@ -88,7 +99,8 @@ object AnalysisStatus {
             phase = "PARADO", direction = "NEUTRO", pattern = "—",
             detail = "Captura encerrada. Nenhuma análise atual disponível.",
             evidence = emptyList(), ruleCount = 0,
-            environment = "SEM CAPTURA",
+            environment = "SEM CAPTURA", clockPhase = "DESLIGADO",
+            clockDetail = "Sem captura.", clockCycles = 0, clockRollovers = 0,
             lastUpdateMs = 0L
         )
     }
