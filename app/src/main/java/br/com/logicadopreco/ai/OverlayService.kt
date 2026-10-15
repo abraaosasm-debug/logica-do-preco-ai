@@ -234,7 +234,7 @@ class OverlayService : Service() {
         val analysis = AnalysisStatus.status.value
         val capture = CaptureStatus.status.value
         val state = IndicatorPresenter.show(analysis, capture, AnalysisStatus.ageMs())
-        miniStatus?.text = if (state.headline == "AGUARDAR") "AGUARDAR" else state.headline
+        miniStatus?.text = if (state.headline == "CAPTURA PAUSADA") "PAUSADA" else state.headline
         miniStatus?.setTextColor(Color.parseColor(state.statusColor))
         label?.text = state.title
         headline?.text = state.headline
