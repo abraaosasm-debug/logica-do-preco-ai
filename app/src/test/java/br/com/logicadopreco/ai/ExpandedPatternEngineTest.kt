@@ -9,7 +9,7 @@ class ExpandedPatternEngineTest {
         VisionCandle(x, up, open, close, high, low, 7, quality)
 
     private val green = candle(10, true, 90, 50, 45, 90)
-    private val red = candle(10, false, 50, 90, 50, 95)
+    private val red = candle(10, false, 50, 90, 45, 90)
 
     @Test fun commandLevelsFollowThePdf() {
         val engine = ExpandedPatternEngine()
