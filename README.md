@@ -87,3 +87,18 @@ As capturas do usuário mostraram dezenas de candles no gráfico enquanto a v0.3
 - Interface atualizada para v0.4.
 
 **A captura foi comprovada nas imagens enviadas pelo usuário, mas o algoritmo novo AINDA precisa de teste em aparelho.** Compilação e testes sintéticos não validam desempenho na Quotex. Não operar dinheiro real com sinais experimentais.
+
+
+## v0.5 — Redesenho do indicador flutuante
+
+Após testes no aparelho, o usuário identificou que o painel estava confuso,
+ocupava muito espaço com telemetria e não explicava quando agir.
+
+Esta versão substitui a sobreposição de diagnóstico por um **indicador compacto**,
+com estados explícitos AGUARDAR, CALIBRAR e CAPTURA PAUSADA, nome do ativo informado
+pelo usuário e leitura resumida. O ícone de minimização é arrastável e o painel pode
+ser expandido. A tela principal continua responsável por FPS, erros e calibração.
+
+**Não apresenta "OPERAR AGORA"**: os timestamps e dados de candles da Quotex
+continuam não validados e por isso possíveis CALL/PUT permanecem em estudo. Há testes
+unitários demonstrando que padrões visuais não se tornam autorizações de entrada.
