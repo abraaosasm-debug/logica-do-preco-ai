@@ -303,6 +303,21 @@ private fun MainScreen(
             Spacer(Modifier.height(6.dp))
             Text("Quadros processados: " + analysis.analyzedFrames,
                 color = TextMuted, fontSize = 11.sp)
+            Spacer(Modifier.height(10.dp))
+            Text("CENÁRIO", color = Accent, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text(analysis.environment, color = TextPrimary, fontSize = 12.sp)
+            Spacer(Modifier.height(7.dp))
+            Text("EVIDÊNCIAS RECONHECIDAS (" + analysis.ruleCount + ")",
+                color = Accent, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            analysis.evidence.takeLast(8).forEach { item ->
+                Text("• " + item, color = TextMuted, fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp))
+            }
+            if (analysis.evidence.isEmpty()) {
+                Text("Aguardando reconhecimento visual.", color = TextMuted, fontSize = 11.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(analysis.limitations, color = Warning, fontSize = 11.sp, lineHeight = 17.sp)
         }
 
         Panel {
