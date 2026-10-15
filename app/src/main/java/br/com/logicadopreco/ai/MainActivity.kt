@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -119,6 +121,7 @@ class MainActivity : ComponentActivity() {
                     onShowOverlay = { showOverlay() },
                     onOpenChrome = { openChrome() },
                     onAnalyzeScreenshot = { screenshotPicker.launch("image/*") },
+                    onExportDiagnostic = { exportDiagnosticCsv() },
                     onNotificationPermission = { requestNotificationPermission() }
                 )
             }
@@ -171,6 +174,26 @@ class MainActivity : ComponentActivity() {
             startService(Intent(this, OverlayService::class.java).apply {
                 action = OverlayService.ACTION_SHOW
             })
+        }
+    }
+
+    private fun exportDiagnosticCsv() {
+        try {
+            if (SessionDiagnostic.count() == 0) {
+                Toast.makeText(this, "Sem dados. Inicie e teste uma captura primeiro.", Toast.LENGTH_LONG).show()
+                return
+            }
+            val out = File(cacheDir, "lp_vision_diagnostico_${System.currentTimeMillis()}.csv")
+            out.writeText(SessionDiagnostic.exportCsv(), Charsets.UTF_8)
+            val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", out)
+            val share = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(share, "Compartilhar diagnóstico de candles"))
+        } catch (error: Exception) {
+            Toast.makeText(this, "Erro ao exportar: ${error.javaClass.simpleName}", Toast.LENGTH_LONG).show()
         }
     }
 

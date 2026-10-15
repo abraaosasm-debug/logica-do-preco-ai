@@ -125,6 +125,7 @@ fun NexoDashboard(
     onShowOverlay: () -> Unit,
     onOpenChrome: () -> Unit,
     onAnalyzeScreenshot: () -> Unit,
+    onExportDiagnostic: () -> Unit,
     onNotificationPermission: () -> Unit
 ) {
     val active = snap.phase in setOf("CAPTURANDO", "INICIANDO", "SEM QUADROS", "ERRO DE QUADRO")
@@ -198,6 +199,17 @@ fun NexoDashboard(
                 Metric("QUADROS",snap.frameCount.toString(),Modifier.weight(1f))
             }
             Text("Contagem de candles não é precisão de sinais.",color=Muted,fontSize=11.sp)
+            HorizontalDivider(color=Edge)
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Text("TEMPO DOS CANDLES",color=Muted,fontSize=10.sp,
+                    modifier=Modifier.weight(1f))
+                Tag(analysis.clockPhase, if (analysis.clockCycles>=2) Mint else Amber)
+            }
+            Text(analysis.clockDetail,color=Snow,fontSize=12.sp,lineHeight=18.sp)
+            Text("Trocas observadas: ${analysis.clockRollovers} • ciclos regulares: ${analysis.clockCycles}",
+                color=Muted,fontSize=11.sp)
+            Text("O tempo de abertura ainda não foi validado com o relógio da Quotex.",
+                color=Amber,fontSize=11.sp,lineHeight=16.sp)
         }
 
         Section {
@@ -205,6 +217,10 @@ fun NexoDashboard(
             Text("Análise de imagem e ajuste de captura",color=Muted,fontSize=12.sp)
             Action("ANALISAR PRINT SALVO",modifier=Modifier.fillMaxWidth(),
                 enabled=!active,onClick=onAnalyzeScreenshot)
+            Action("EXPORTAR DIAGNÓSTICO DOS CANDLES (.CSV)",
+                modifier=Modifier.fillMaxWidth(),onClick=onExportDiagnostic)
+            Text("O arquivo guarda apenas contagens, geometria e horários observados, sem prints, senha ou saldo.",
+                color=Muted,fontSize=11.sp,lineHeight=17.sp)
             Action(if(calibration)"FECHAR CALIBRAÇÃO" else "CALIBRAR GRÁFICO",
                 modifier=Modifier.fillMaxWidth(),onClick={calibration=!calibration})
             if (calibration) {
