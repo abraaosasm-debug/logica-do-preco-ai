@@ -229,6 +229,7 @@ private fun MainScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Base)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 26.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -255,7 +256,7 @@ private fun MainScreen(
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatBox("QUADROS", snap.frameCount.toString(), Modifier.weight(1f))
-                StatBox("FPS", String.format(Locale.US, "%.1f", snap.fps), Modifier.weight(1f))
+                StatBox("FPS CAP.", String.format(Locale.US, "%.1f", snap.fps), Modifier.weight(1f))
                 StatBox("BRILHO", snap.meanBrightness?.toString() ?: "—", Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
@@ -267,7 +268,7 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("01  Permissões", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("01  Permissões", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -291,7 +292,7 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("02  Sessão", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("02  Sessão", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             Spacer(Modifier.height(12.dp))
             if (!active) {
                 Button(
@@ -325,12 +326,15 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("03  Análise real — experimental", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("03  Análise real — experimental", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             Spacer(Modifier.height(9.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Candles detectados: " + analysis.candles, color = TextPrimary, fontSize = 13.sp,
                     modifier = Modifier.weight(1f))
-                Text("Leitura: " + analysis.quality + "%", color = Accent, fontSize = 13.sp)
+                Text(
+                    if (analysis.candles >= 8) "Nitidez: " + analysis.quality + "%" else "Dados insuficientes",
+                    color = Accent, fontSize = 12.sp
+                )
             }
             Spacer(Modifier.height(6.dp))
             Text("Situação: " + analysis.phase, color = if (analysis.direction != "NEUTRO") Positive else Warning,
@@ -343,6 +347,9 @@ private fun MainScreen(
             }
             Spacer(Modifier.height(6.dp))
             Text(analysis.detail, color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+            Spacer(Modifier.height(6.dp))
+            Text("Nitidez é uma estimativa do desenho detectado, não taxa de acerto dos sinais.",
+                color = TextMuted, fontSize = 11.sp, lineHeight = 17.sp)
             Spacer(Modifier.height(6.dp))
             Text("Quadros processados: " + analysis.analyzedFrames,
                 color = TextMuted, fontSize = 11.sp)
@@ -364,12 +371,19 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("04  Calibrar área do gráfico", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("04  Calibrar área do gráfico", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             Spacer(Modifier.height(8.dp))
             Text("Selecione somente a região dos candles, sem botões, preços, menu ou painel LP AI. " +
                 "Ajuste os percentuais, volte ao Chrome e confira a quantidade detectada.",
                 color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
             Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { onCropChange(VisionCrop(2, 30, 73, 73)) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("USAR PERFIL INICIAL QUOTEX (PRINT ENVIADO)") }
+            Text("Perfil sugerido a partir do seu print; ajuste se mudar o zoom ou a tela.",
+                color = TextMuted, fontSize = 11.sp, lineHeight = 17.sp)
+            Spacer(Modifier.height(7.dp))
             CropSlider("Borda esquerda", crop.left, 0, crop.right - 20) {
                 onCropChange(crop.copy(left = it))
             }
@@ -403,7 +417,7 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("05  Histórico da sessão", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("05  Histórico da sessão", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             if (analysis.events.isEmpty()) {
                 Text("Sem observações registradas.", color = TextMuted, fontSize = 12.sp)
             } else {
@@ -415,10 +429,10 @@ private fun MainScreen(
         }
 
         Panel {
-            Text("06  Procedimento de teste", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("06  Procedimento de teste", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = TextPrimary)
             Spacer(Modifier.height(8.dp))
             Step("1", "Autorize a sobreposição.")
-            Step("2", "Inicie a captura e confirme o diálogo do Android.")
+            Step("2", "Inicie a captura e, se houver escolha, compartilhe a tela inteira.")
             Step("3", "Volte ao Chrome e abra o gráfico da Quotex.")
             Step("4", "Toque na bolha LP AI para expandir os dados.")
             Step("5", "Confira se os quadros aumentam e encerre a captura.")
