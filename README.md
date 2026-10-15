@@ -2,7 +2,7 @@
 
 Aplicativo Android nativo para **diagnóstico de captura de tela e painel flutuante** durante o uso de gráficos em navegador.
 
-## Escopo da versão 0.2.0
+## Escopo da versão 0.3.0
 
 - Interface de monitoramento em português (Jetpack Compose).
 - Captura de tela após consentimento explícito via MediaProjection.
@@ -48,3 +48,28 @@ Sem wrapper Gradle neste repositório, por enquanto. O GitHub Actions instala a 
 
 - **v0.3**: regras testáveis conforme o PDF, incluindo comandos e taxas divididas.
 - **v0.4**: estados dos gatilhos e alertas fundamentados para testes demonstrativos.
+
+
+## Matrizes de reconhecimento adicionais (v0.3)
+
+Classificador offline independente `ExpandedPatternEngine`:
+- Comandos níveis 1–3 e regiões de abertura / metade / fechamento.
+- Velas de força por ruptura de extremos visíveis.
+- Taxas divididas níveis 1–3 e intermediária (candidatas, contexto incerto).
+- Nova posição após reversão, nova alta e nova baixa.
+- Retorno visual às regiões de defesa.
+- Classificação geométrica preliminar de topos e fundos / tendência.
+
+**Nenhum desses reconhecimentos significa probabilidade de ganho ou confirmação de entrada.** O aplicativo não recebe timestamps de abertura da Quotex, OHLC oficial, nem histórico completo. Não é correto usar um sinal em tempo real para dinheiro real até que a calibração e os resultados sejam validados em condições reais e teste fora da amostra.
+
+A fidelidade às 223 páginas do PDF é um objetivo do projeto, não uma funcionalidade totalmente concluída nesta versão. Não há execução de ordens, leitura automatizada de credenciais, API não oficial nem promessas de acerto. O usuário deve testar na conta demonstrativa.
+
+## Como validar com dados reais
+
+1. Configure o gráfico M1 em cores verde/vermelho e candles legíveis.
+2. Selecione a região do gráfico no aplicativo, sem controles do navegador.
+3. Compare manualmente os candles detectados com os visíveis.
+4. Registre falsos positivos e falsos negativos por tipo de padrão.
+5. Confira atrasos, perdas de quadros e mudanças de orientação.
+6. Use somente conta demonstrativa durante a validação.
+
