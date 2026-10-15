@@ -1,6 +1,8 @@
 package br.com.logicadopreco.ai
 
 import android.media.Image
+import android.graphics.Bitmap
+import android.graphics.Color
 import java.nio.ByteBuffer
 import kotlin.math.abs
 import kotlin.math.max
@@ -39,18 +41,36 @@ class MarketVision {
     }
 
     fun analyze(image: Image, crop: VisionCrop): Result {
-        if (!crop.valid) return Result(emptyList(), 0, 0, 0, "Recorte inválido. Ajuste os limites.")
         if (image.planes.isEmpty()) return Result(emptyList(), 0, 0, 0, "Imagem sem pixels.")
         val plane = image.planes[0]
         val buffer = plane.buffer.duplicate()
         val stride = plane.rowStride
         val pixelStride = plane.pixelStride
         if (pixelStride < 3) return Result(emptyList(), 0, 0, 0, "Formato de pixels incompatível.")
+        return analyzeCore(image.width, image.height, crop) { x, y ->
+            val offset = y * stride + x * pixelStride
+            if (offset < 0 || offset + 2 >= buffer.limit()) return@analyzeCore 0
+            val r = buffer.get(offset).toInt() and 255
+            val g = buffer.get(offset + 1).toInt() and 255
+            val b = buffer.get(offset + 2).toInt() and 255
+            classify(r, g, b)
+        }
+    }
 
-        val x0 = image.width * crop.left / 100
-        val y0 = image.height * crop.top / 100
-        val x1 = image.width * crop.right / 100
-        val y1 = image.height * crop.bottom / 100
+    /** Análise manual de um print selecionado; usa a mesma lógica do monitoramento. */
+    fun analyzeBitmap(bitmap: Bitmap, crop: VisionCrop): Result =
+        analyzeCore(bitmap.width, bitmap.height, crop) { x, y ->
+            val pixel = bitmap.getPixel(x, y)
+            classify(Color.red(pixel), Color.green(pixel), Color.blue(pixel))
+        }
+
+    private inline fun analyzeCore(imgW: Int, imgH: Int, crop: VisionCrop,
+                                   pixelClass: (Int, Int) -> Int): Result {
+        if (!crop.valid) return Result(emptyList(), 0, 0, 0, "Recorte inválido. Ajuste os limites.")
+        val x0 = imgW * crop.left / 100
+        val y0 = imgH * crop.top / 100
+        val x1 = imgW * crop.right / 100
+        val y1 = imgH * crop.bottom / 100
         val width = (x1 - x0).coerceAtLeast(1)
         val height = (y1 - y0).coerceAtLeast(1)
         val w = min(600, width)
@@ -64,13 +84,7 @@ class MarketVision {
             val realY = y0 + y * height / h
             for (x in 0 until w) {
                 val realX = x0 + x * width / w
-                val offset = realY * stride + realX * pixelStride
-                if (offset < 0 || offset + 2 >= buffer.limit()) continue
-                // RGBA_8888 disponibiliza canais R, G, B nesta ordem.
-                val r = buffer.get(offset).toInt() and 255
-                val g = buffer.get(offset + 1).toInt() and 255
-                val b = buffer.get(offset + 2).toInt() and 255
-                val value = classify(r, g, b)
+                val value = pixelClass(realX, realY)
                 if (value != 0) {
                     classes[y * w + x] = value.toByte()
                     rowCount[y]++
