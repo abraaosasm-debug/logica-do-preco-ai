@@ -78,7 +78,18 @@ object AnalysisStatus {
     fun error(reason: String) {
         mutable.value = mutable.value.copy(
             phase = "INDETERMINADO", direction = "NEUTRO",
-            detail = reason
+            pattern = "—", detail = reason, evidence = emptyList(), ruleCount = 0
+        )
+    }
+
+    @Synchronized
+    fun stop() {
+        mutable.value = mutable.value.copy(
+            phase = "PARADO", direction = "NEUTRO", pattern = "—",
+            detail = "Captura encerrada. Nenhuma análise atual disponível.",
+            evidence = emptyList(), ruleCount = 0,
+            environment = "SEM CAPTURA",
+            lastUpdateMs = 0L
         )
     }
 
