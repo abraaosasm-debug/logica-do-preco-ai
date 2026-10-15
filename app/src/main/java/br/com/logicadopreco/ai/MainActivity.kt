@@ -1,6 +1,7 @@
 package br.com.logicadopreco.ai
 
 import android.Manifest
+import android.graphics.BitmapFactory
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -31,6 +32,41 @@ import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private var overlayGranted by mutableStateOf(false)
+    private val screenshotPicker = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        if (CaptureStatus.status.value.phase in listOf("INICIANDO", "CAPTURANDO")) {
+            Toast.makeText(this, "Encerre a captura antes de analisar uma imagem.", Toast.LENGTH_LONG).show()
+            return@registerForActivityResult
+        }
+        Thread {
+            try {
+                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, options)
+                }
+                val factor = (maxOf(options.outWidth, options.outHeight) / 2300).coerceAtLeast(1)
+                val decode = BitmapFactory.Options().apply { inSampleSize = factor }
+                val bitmap = contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream, null, decode)
+                } ?: throw IllegalStateException("Imagem não decodificada")
+                val config = VisionSettings(applicationContext)
+                val result = MarketVision().analyzeBitmap(bitmap, config.getCrop())
+                val original = PatternEngine().evaluate(result.candles, result.sampledHeight)
+                val expanded = ExpandedPatternEngine().evaluate(result.candles, result.sampledHeight)
+                AnalysisStatus.update(result, original, config.getAsset(), config.getTimeframe(), expanded)
+                bitmap.recycle()
+                runOnUiThread {
+                    Toast.makeText(this, "Print analisado: " + result.candles.size +
+                        " candles visuais detectados.", Toast.LENGTH_LONG).show()
+                }
+            } catch (error: Exception) {
+                AnalysisStatus.error("Falha ao ler o print: " + error.javaClass.simpleName)
+            }
+        }.start()
+    }
+
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -82,6 +118,7 @@ class MainActivity : ComponentActivity() {
                     onStop = { stopCapture() },
                     onShowOverlay = { showOverlay() },
                     onOpenChrome = { openChrome() },
+                    onAnalyzeScreenshot = { screenshotPicker.launch("image/*") },
                     onNotificationPermission = { requestNotificationPermission() }
                 )
             }
@@ -184,6 +221,7 @@ private fun MainScreen(
     onStop: () -> Unit,
     onShowOverlay: () -> Unit,
     onOpenChrome: () -> Unit,
+    onAnalyzeScreenshot: () -> Unit,
     onNotificationPermission: () -> Unit
 ) {
     val active = snap.phase in listOf("INICIANDO", "CAPTURANDO", "SEM QUADROS", "ERRO DE QUADRO")
@@ -279,6 +317,11 @@ private fun MainScreen(
             OutlinedButton(onClick = onOpenChrome, modifier = Modifier.fillMaxWidth()) {
                 Text("ABRIR CHROME")
             }
+            OutlinedButton(
+                onClick = onAnalyzeScreenshot,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !active
+            ) { Text("ANALISAR PRINT DO GRÁFICO") }
         }
 
         Panel {
