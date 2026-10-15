@@ -16,7 +16,11 @@ data class AnalysisSnapshot(
     val lastUpdateMs: Long = 0,
     val asset: String = "Não identificado",
     val timeframe: String = "M1",
-    val events: List<String> = emptyList()
+    val events: List<String> = emptyList(),
+    val environment: String = "SEM DADOS",
+    val evidence: List<String> = emptyList(),
+    val limitations: String = "Leitura visual ainda não validada",
+    val ruleCount: Int = 0
 )
 
 object AnalysisStatus {
@@ -26,7 +30,8 @@ object AnalysisStatus {
     private var lastEventAt = 0L
 
     @Synchronized
-    fun update(vision: MarketVision.Result, reading: PatternReading, asset: String, timeframe: String) {
+    fun update(vision: MarketVision.Result, reading: PatternReading, asset: String, timeframe: String,
+               study: StudyResult) {
         val now = SystemClock.elapsedRealtime()
         val quality = if (vision.candles.isEmpty()) 0
             else (vision.candles.map { it.quality }.average() * 100).toInt()
@@ -59,7 +64,13 @@ object AnalysisStatus {
             analyzedFrames = previous.analyzedFrames + 1,
             lastUpdateMs = now,
             asset = asset, timeframe = timeframe,
-            events = events
+            events = events,
+            environment = if (valid) study.environment else "SEM DADOS CONFIÁVEIS",
+            evidence = if (valid) study.evidence.takeLast(12).map {
+                it.type + " • " + it.direction + " • " + it.pageHint
+            } else emptyList(),
+            limitations = study.caution,
+            ruleCount = study.evidence.size
         )
     }
 
