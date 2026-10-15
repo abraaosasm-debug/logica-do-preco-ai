@@ -197,17 +197,16 @@ class OverlayService : Service() {
             AnalysisStatus.status.collectLatest { snapshot ->
                 val stale = snapshot.lastUpdateMs != 0L &&
                     AnalysisStatus.ageMs() > 5000L
+                val qualityLabel = if (snapshot.candles >= 8)
+                    "Nitidez: ${snapshot.quality}%" else "Dados insuficientes"
+                val patternLabel = if (snapshot.direction != "NEUTRO") {
+                    "Possível ${snapshot.direction} (não validado)\n${snapshot.pattern}"
+                } else snapshot.pattern + if (snapshot.candles < 8) "\n${snapshot.detail}" else ""
                 analysisText?.text = if (stale) {
                     "CAPTURA DESATUALIZADA\nObservações suspensas"
                 } else {
-                    "Candles: " + snapshot.candles +
-                        if (snapshot.candles >= 8) " | Nitidez: " + snapshot.quality + "%" else " | Calibrar" +
-                        "\nEstado: " + snapshot.phase +
-                        if (snapshot.direction != "NEUTRO")
-                            "\nPossível " + snapshot.direction + " (não validado)\n" +
-                                snapshot.pattern
-                        else "\n" + snapshot.pattern +
-                            if (snapshot.candles < 8) "\n" + snapshot.detail else ""
+                    "Candles: ${snapshot.candles} • $qualityLabel\n" +
+                        "Estado: ${snapshot.phase}\n$patternLabel"
                 }
             }
         }
