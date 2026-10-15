@@ -115,3 +115,25 @@ unitários demonstrando que padrões visuais não se tornam autorizações de en
 - O reconhecimento visual continua experimental. Não é uma ferramenta aprovada para risco de capital real.
 
 A compilação e os testes unitários precisam passar para gerar a Release. O funcionamento visual final só poderá ser confirmado em testes no celular.
+
+
+## v0.7 — Rastreamento temporal e evidências auditáveis
+
+O app agora captura uma série de posições dos candles em horários monotônicos, tenta observar o surgimento de novas colunas à direita e verifica se os intervalos são compatíveis com M1/M5. Não transforma essa estimativa em sincronização oficial.
+
+- **CandleTimeline.kt**: observação de transições candidatas; duas imagens consecutivas são necessárias para confirmar uma nova coluna, e pelo menos dois intervalos compatíveis com o timeframe para sinalizar ciclos regulares.
+- **SessionDiagnostic.kt**: registro limitado a 600 linhas CSV de timestamps, contagem, geometria relativa, estado do rastreador, sem capturas de tela ou dados da conta.
+- **Exportação CSV** pelo aplicativo, com Android FileProvider.
+- **CandleTimelineTest.kt**: testes de ausência de transição, confirmação em dois frames, intervalos e invalidação após troca do timeframe.
+- **QuotexVisualRegressionTest.kt**: máscara de classes verde/vermelho/sem cor derivada do print real fornecido pelo usuário, sem o gráfico RGB, sem cotação e sem conta; confere se o separador identifica dezenas de candidatos, e não apenas uma vela.
+- **Permanece experimental:** regressão da imagem estática não comprova temporização ao vivo, preço exato, generalização para outras telas ou rentabilidade.
+
+### Validação de 3 minutos no celular
+
+1. Instale o APK e abra o Chrome com o gráfico da Quotex M1.
+2. Inicie captura de tela inteira e deixe o gráfico visível por **três minutos**.
+3. No aplicativo, toque em **EXPORTAR DIAGNÓSTICO DOS CANDLES (.CSV)**.
+4. Envie somente o CSV; não é necessário mostrar saldo, conta ou dinheiro.
+5. Após comparar timestamps, geométricas e mudanças no gráfico, validar a identificação temporal antes de desbloquear possíveis gatilhos de estudo.
+
+**Não use dinheiro real neste estágio.** A implementação ainda não demonstra alertas com precisão validada.
