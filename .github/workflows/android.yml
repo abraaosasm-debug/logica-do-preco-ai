@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Compilar v0.5
+    name: Compilar v0.6
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -40,13 +40,13 @@ jobs:
       - name: Preparar APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/logica-do-preco-ai-v0.5-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/logica-do-preco-ai-v0.6-debug.apk
           sha256sum dist/*.apk | tee dist/SHA256SUMS.txt
 
       - name: Publicar como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: logica-do-preco-ai-v0.5-debug
+          name: logica-do-preco-ai-v0.6-debug
           path: dist/
           if-no-files-found: error
 
@@ -54,8 +54,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.5.0-dev >/dev/null 2>&1; then
-            gh release upload v0.5.0-dev dist/logica-do-preco-ai-v0.5-debug.apk dist/SHA256SUMS.txt --clobber
+          if gh release view v0.6.0-dev >/dev/null 2>&1; then
+            gh release upload v0.6.0-dev dist/logica-do-preco-ai-v0.6-debug.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create v0.5.0-dev dist/logica-do-preco-ai-v0.5-debug.apk dist/SHA256SUMS.txt --title "Lógica do Preço AI v0.5 (teste de captura)" --notes "APK de estudos v0.5: captura, overlay, classificações preliminares do PDF. NÃO opera automaticamente e NÃO oferece sinais validados." --prerelease
+            gh release create v0.6.0-dev dist/logica-do-preco-ai-v0.6-debug.apk dist/SHA256SUMS.txt --title "Lógica do Preço AI v0.6 (teste de captura)" --notes "APK de estudos v0.6: captura, overlay, classificações preliminares do PDF. NÃO opera automaticamente e NÃO oferece sinais validados." --prerelease
           fi
