@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
                 var timeframe by remember { mutableStateOf(settings.getTimeframe()) }
                 val snap by CaptureStatus.status.collectAsState()
                 val analysis by AnalysisStatus.status.collectAsState()
-                MainScreen(
+                NexoDashboard(
                     snap = snap,
                     analysis = analysis,
                     crop = crop,
