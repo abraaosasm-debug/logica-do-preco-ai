@@ -8,10 +8,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.IBinder
 import android.provider.Settings
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
-import android.view.WindowManager
+import android.view.*
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.coroutines.*
@@ -19,240 +16,212 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/**
- * Indicador flutuante de leitura gráfica.
- * Não emite ordens e nunca transforma padrões experimentais em "OPERAR".
- */
+/** Cartão discreto para leitura sobre o navegador; não executa operações. */
 class OverlayService : Service() {
     companion object {
         const val ACTION_SHOW = "br.com.logicadopreco.ai.OVERLAY_SHOW"
         const val ACTION_HIDE = "br.com.logicadopreco.ai.OVERLAY_HIDE"
     }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private lateinit var manager: WindowManager
-    private val prefs by lazy { getSharedPreferences("overlay_layout", MODE_PRIVATE) }
-    private var root: LinearLayout? = null
-    private var panel: LinearLayout? = null
-    private var params: WindowManager.LayoutParams? = null
+    private val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val statePrefs by lazy { getSharedPreferences("overlay_layout", MODE_PRIVATE) }
+    private lateinit var wm: WindowManager
+    private var frame: LinearLayout? = null
+    private var details: LinearLayout? = null
+    private var bounds: WindowManager.LayoutParams? = null
     private var expanded = false
-
     private var miniStatus: TextView? = null
-    private var label: TextView? = null
-    private var headline: TextView? = null
-    private var reason: TextView? = null
+    private var bigStatus: TextView? = null
+    private var caption: TextView? = null
+    private var subtitle: TextView? = null
     private var setup: TextView? = null
-    private var context: TextView? = null
-    private var badge: TextView? = null
-    private var dataState: TextView? = null
+    private var notes: TextView? = null
+    private var statusTag: TextView? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_HIDE || !Settings.canDrawOverlays(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (root == null) buildOverlay()
+        if (frame == null) build()
         return START_NOT_STICKY
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
-
-    private fun shape(bg: String, border: String = "#324257", radius: Int = 18): GradientDrawable =
+    private fun dp(n: Int) = (n * resources.displayMetrics.density).roundToInt()
+    private fun surface(bg: String, stroke: String = "#29525B", round: Int = 17) =
         GradientDrawable().apply {
             setColor(Color.parseColor(bg))
-            cornerRadius = dp(radius).toFloat()
-            setStroke(dp(1), Color.parseColor(border))
+            cornerRadius = dp(round).toFloat()
+            setStroke(dp(1), Color.parseColor(stroke))
         }
 
-    private fun text(value: String, size: Float, color: String, strong: Boolean = false): TextView =
+    private fun label(value: String, size: Float, color: String, bold: Boolean = false) =
         TextView(this).apply {
-            this.text = value
+            text = value
             textSize = size
             setTextColor(Color.parseColor(color))
-            gravity = Gravity.CENTER_VERTICAL
-            if (strong) setTypeface(typeface, Typeface.BOLD)
             includeFontPadding = true
-        }
-
-    private fun buildOverlay() {
-        manager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val outer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = shape("#101825", "#41506A", 18)
-            elevation = dp(8).toFloat()
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-        }
-        val handle = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
-            orientation = LinearLayout.HORIZONTAL
-            minimumHeight = dp(38)
+            if (bold) setTypeface(typeface, Typeface.BOLD)
         }
-        val brand = text("▰  LP", 14f, "#67D3F5", true)
-        handle.addView(brand)
-        miniStatus = text("   AGUARDAR", 12f, "#FBBF24", true).apply {
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
-        }
-        handle.addView(miniStatus, LinearLayout.LayoutParams(0, dp(38), 1f))
-        outer.addView(handle, LinearLayout.LayoutParams(-1, dp(38)))
 
-        val body = LinearLayout(this).apply {
+    private fun build() {
+        wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = surface("#0B1824", "#2A5965")
+            elevation = dp(12).toFloat()
+            setPadding(dp(12), dp(7), dp(12), dp(9))
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(39)
+        }
+        val emblem = label("◢", 21f, "#69D4E4", true).apply { gravity = Gravity.CENTER }
+        header.addView(emblem, LinearLayout.LayoutParams(dp(25), dp(39)))
+        val brand = label("LP  /  VISION", 12f, "#EBF8FC", true)
+        header.addView(brand, LinearLayout.LayoutParams(0, dp(39), 1f))
+        miniStatus = label("AGUARDAR", 10f, "#F4C276", true).apply {
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
+        header.addView(miniStatus, LinearLayout.LayoutParams(-2, dp(39)))
+        root.addView(header, LinearLayout.LayoutParams(-1,dp(39)))
+
+        val expandedContent = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
-            setPadding(dp(1), dp(8), dp(1), dp(2))
+            setPadding(dp(1), dp(5), dp(1), 0)
         }
-
-        label = text("LEITURA DO GRÁFICO", 10f, "#AAB9CE", true)
-        body.addView(label)
-        headline = text("AGUARDAR", 25f, "#FBBF24", true).apply {
-            setPadding(0, dp(6), 0, dp(3))
-        }
-        body.addView(headline)
-        reason = text("Aguardando dados do gráfico.", 12f, "#F3F6FB")
-        body.addView(reason)
-
-        val separator = View(this).apply { setBackgroundColor(Color.parseColor("#334255")) }
-        body.addView(separator, LinearLayout.LayoutParams(-1, dp(1)).apply {
-            topMargin = dp(12)
-            bottomMargin = dp(12)
+        subtitle = label("ANÁLISE DO GRÁFICO", 10f, "#7AA5B6", true)
+        expandedContent.addView(subtitle)
+        bigStatus = label("AGUARDAR", 27f, "#F4C276", true).apply { setPadding(0,dp(4),0,dp(4)) }
+        expandedContent.addView(bigStatus)
+        caption = label("Nenhum gatilho confirmado.", 12f, "#E6F0F7")
+        expandedContent.addView(caption)
+        val rule = View(this).apply { setBackgroundColor(Color.parseColor("#244456")) }
+        expandedContent.addView(rule,LinearLayout.LayoutParams(-1,dp(1)).apply {
+            topMargin = dp(12); bottomMargin=dp(11)
         })
-
-        setup = text("Ativo não selecionado • M1", 12f, "#D7E2EF", true)
-        body.addView(setup)
-        context = text("Nenhuma leitura confirmada", 12f, "#BCCADA").apply {
-            setPadding(0, dp(5), 0, dp(8))
+        setup = label("ATIVO  /  M1", 12f, "#8CE3DA", true)
+        expandedContent.addView(setup)
+        notes = label("Aguardando padrões reconhecidos.", 12f, "#A8BECB").apply {
+            setPadding(0,dp(5),0,dp(7))
         }
-        body.addView(context)
-        dataState = text("FONTE: AGUARDANDO", 10f, "#88A4C2", true)
-        body.addView(dataState)
+        expandedContent.addView(notes)
+        statusTag = label("SEM ENTRADA VALIDADA", 10f, "#F4C276", true)
+        expandedContent.addView(statusTag)
 
-        val footer = LinearLayout(this).apply {
+        val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, 0)
+            setPadding(0,dp(11),0,0)
         }
-        badge = text("ESTUDO", 10f, "#FBBF24", true)
-        footer.addView(badge, LinearLayout.LayoutParams(0, dp(34), 1f))
-
-        val collapse = text("RECOLHER", 10f, "#67D3F5", true).apply {
-            setPadding(dp(4), 0, dp(10), 0)
-            gravity = Gravity.CENTER
-            setOnClickListener { setExpanded(false) }
-        }
-        val stop = text("PARAR", 10f, "#F38B92", true).apply {
-            setPadding(dp(5), 0, 0, 0)
-            gravity = Gravity.CENTER
-            setOnClickListener {
-                startService(Intent(this@OverlayService, CaptureService::class.java).apply {
-                    action = CaptureService.ACTION_STOP
-                })
-                stopSelf()
+        fun action(text: String, color: String, fn: () -> Unit): TextView =
+            label(text, 10f, color, true).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(6),0,dp(6),0)
+                setOnClickListener { fn() }
+                minHeight = dp(41)
             }
-        }
-        footer.addView(collapse, LinearLayout.LayoutParams(-2, dp(38)))
-        footer.addView(stop, LinearLayout.LayoutParams(-2, dp(38)))
-        body.addView(footer)
+        actions.addView(action("DETALHES", "#69D4E4") {
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+        },LinearLayout.LayoutParams(0,dp(42),1f))
+        actions.addView(action("RECOLHER", "#A9CBD0") {
+            changeSize(false)
+        },LinearLayout.LayoutParams(0,dp(42),1f))
+        actions.addView(action("PARAR", "#F48C98") {
+            startService(Intent(this, CaptureService::class.java).apply { action=CaptureService.ACTION_STOP })
+            stopSelf()
+        },LinearLayout.LayoutParams(0,dp(42),1f))
+        expandedContent.addView(actions)
+        root.addView(expandedContent)
+        frame=root
+        details=expandedContent
 
-        outer.addView(body, LinearLayout.LayoutParams(-1, -2))
-        root = outer
-        panel = body
-
-        val lp = WindowManager.LayoutParams(
-            dp(174), -2,
+        val lp=WindowManager.LayoutParams(
+            dp(174),WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = prefs.getInt("x", dp(12))
-            y = prefs.getInt("y", dp(90))
+            gravity=Gravity.TOP or Gravity.START
+            x=statePrefs.getInt("x",dp(12))
+            y=statePrefs.getInt("y",dp(92))
         }
-        params = lp
-
-        var downX = 0f
-        var downY = 0f
-        var initialX = 0
-        var initialY = 0
-        var dragged = false
-        handle.setOnTouchListener { _, event ->
+        bounds=lp
+        var downX=0f
+        var downY=0f
+        var initialX=0
+        var initialY=0
+        var moved=false
+        header.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    downX = event.rawX
-                    downY = event.rawY
-                    initialX = lp.x
-                    initialY = lp.y
-                    dragged = false
+                    downX=event.rawX;downY=event.rawY
+                    initialX=lp.x;initialY=lp.y
+                    moved=false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - downX
-                    val dy = event.rawY - downY
-                    if (abs(dx) > dp(6) || abs(dy) > dp(6)) dragged = true
-                    if (dragged) {
-                        val bounds = resources.displayMetrics
-                        lp.x = (initialX + dx).roundToInt()
-                            .coerceIn(0, (bounds.widthPixels - lp.width).coerceAtLeast(0))
-                        lp.y = (initialY + dy).roundToInt()
-                            .coerceIn(0, (bounds.heightPixels - dp(70)).coerceAtLeast(0))
-                        manager.updateViewLayout(outer, lp)
+                    val dx=event.rawX-downX; val dy=event.rawY-downY
+                    if (abs(dx)>dp(6)||abs(dy)>dp(6)) moved=true
+                    if (moved) {
+                        lp.x=(initialX+dx).roundToInt().coerceIn(0,(resources.displayMetrics.widthPixels-lp.width).coerceAtLeast(0))
+                        lp.y=(initialY+dy).roundToInt().coerceIn(0,(resources.displayMetrics.heightPixels-dp(70)).coerceAtLeast(0))
+                        wm.updateViewLayout(root,lp)
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (dragged) prefs.edit().putInt("x", lp.x).putInt("y", lp.y).apply()
-                    else setExpanded(!expanded)
+                    if (moved) statePrefs.edit().putInt("x",lp.x).putInt("y",lp.y).apply()
+                    else changeSize(!expanded)
                     true
                 }
                 else -> false
             }
         }
-
-        manager.addView(outer, lp)
-        scope.launch {
-            AnalysisStatus.status.collectLatest { refresh() }
-        }
-        scope.launch {
-            CaptureStatus.status.collectLatest { refresh() }
-        }
-        refresh()
+        wm.addView(root,lp)
+        uiScope.launch { AnalysisStatus.status.collectLatest { render() } }
+        uiScope.launch { CaptureStatus.status.collectLatest { render() } }
+        render()
     }
 
-    private fun setExpanded(value: Boolean) {
-        expanded = value
-        panel?.visibility = if (expanded) View.VISIBLE else View.GONE
-        val lp = params ?: return
-        lp.width = if (expanded) dp(264) else dp(174)
-        lp.width = lp.width.coerceAtMost((resources.displayMetrics.widthPixels - dp(12)).coerceAtLeast(dp(140)))
-        lp.x = lp.x.coerceIn(0, (resources.displayMetrics.widthPixels - lp.width).coerceAtLeast(0))
-        root?.let { manager.updateViewLayout(it, lp) }
+    private fun changeSize(value: Boolean) {
+        expanded=value
+        details?.visibility=if(value) View.VISIBLE else View.GONE
+        val lp=bounds?:return
+        lp.width=dp(if(value)262 else 174).coerceAtMost((resources.displayMetrics.widthPixels-dp(12)).coerceAtLeast(dp(150)))
+        lp.x=lp.x.coerceIn(0,(resources.displayMetrics.widthPixels-lp.width).coerceAtLeast(0))
+        frame?.let { wm.updateViewLayout(it,lp) }
     }
 
-    private fun refresh() {
-        if (root == null) return
-        val analysis = AnalysisStatus.status.value
-        val capture = CaptureStatus.status.value
-        val state = IndicatorPresenter.show(analysis, capture, AnalysisStatus.ageMs())
-        miniStatus?.text = if (state.headline == "CAPTURA PAUSADA") "PAUSADA" else state.headline
+    private fun render() {
+        val state=IndicatorPresenter.show(
+            AnalysisStatus.status.value,CaptureStatus.status.value,AnalysisStatus.ageMs()
+        )
+        miniStatus?.text=when(state.headline){
+            "CAPTURA PAUSADA" -> "PAUSADA"
+            else -> state.headline
+        }
         miniStatus?.setTextColor(Color.parseColor(state.statusColor))
-        label?.text = state.title
-        headline?.text = state.headline
-        headline?.setTextColor(Color.parseColor(state.statusColor))
-        reason?.text = state.reason
-        setup?.text = state.setup
-        context?.text = state.context
-        dataState?.text = state.capture
-        badge?.text = state.badge
-        badge?.setTextColor(Color.parseColor(state.statusColor))
+        bigStatus?.text=state.headline
+        bigStatus?.setTextColor(Color.parseColor(state.statusColor))
+        caption?.text=state.reason
+        setup?.text=state.setup
+        notes?.text=state.context
+        statusTag?.text=state.badge
+        statusTag?.setTextColor(Color.parseColor(state.statusColor))
     }
 
     override fun onDestroy() {
-        scope.cancel()
-        root?.let {
-            try { manager.removeView(it) } catch (_: Exception) { }
+        uiScope.cancel()
+        frame?.let {
+            try { wm.removeView(it) } catch (_: Exception) { }
         }
-        root = null
+        frame=null
         super.onDestroy()
     }
 }
