@@ -15,7 +15,7 @@ import android.view.WindowManager
 
 /**
  * Serviço de captura consentida. Processa pixels em memória para diagnósticos;
- * não transmite, persiste ou reconhece candles no protótipo v0.1.
+ * não transmite nem persiste capturas; identifica candles experimentalmente.
  */
 class CaptureService : Service() {
     companion object {
@@ -49,9 +49,9 @@ class CaptureService : Service() {
             ) {
                 CaptureStatus.setPhase(
                     "SEM QUADROS",
-                    "Mais de 5 segundos sem imagem nova. Verifique o compartilhamento."
+                    "Captura sem novos quadros. No Android, compartilhar somente o Chrome pode pausar ao mudar de aplicativo; reinicie e selecione TELA INTEIRA."
                 )
-                AnalysisStatus.error("Sem quadros recentes. Análise suspensa.")
+                AnalysisStatus.error("Leitura pausada: sem imagem recente. Não usar observações antigas.")
             }
             mainHandler.postDelayed(this, 2000L)
         }
