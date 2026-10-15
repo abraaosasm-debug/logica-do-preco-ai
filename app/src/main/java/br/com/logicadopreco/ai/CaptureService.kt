@@ -34,6 +34,10 @@ class CaptureService : Service() {
     private lateinit var workerHandler: Handler
     private val mainHandler = Handler(Looper.getMainLooper())
     private var stopped = false
+    private val vision = MarketVision()
+    private val patterns = PatternEngine()
+    private lateinit var visionSettings: VisionSettings
+    private var lastAnalysisAtMs = 0L
 
     private val watchdog = object : Runnable {
         override fun run() {
@@ -53,6 +57,7 @@ class CaptureService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        visionSettings = VisionSettings(this)
         workerThread = HandlerThread("lp-capture-frames").also { it.start() }
         workerHandler = Handler(workerThread.looper)
         createNotificationChannel()
@@ -128,6 +133,8 @@ class CaptureService : Service() {
         val height = bounds.height().coerceAtLeast(1)
         val densityDpi = resources.displayMetrics.densityDpi
         CaptureStatus.start(width, height)
+        AnalysisStatus.reset()
+        lastAnalysisAtMs = 0L
 
         val imageReader = ImageReader.newInstance(
             width, height, PixelFormat.RGBA_8888, 2
@@ -140,8 +147,19 @@ class CaptureService : Service() {
                 if (image != null) {
                     val brightness = sampleBrightness(image)
                     CaptureStatus.onFrame(image.width, image.height, brightness)
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastAnalysisAtMs >= 650L) {
+                        lastAnalysisAtMs = now
+                        val cropped = vision.analyze(image, visionSettings.getCrop())
+                        val reading = patterns.evaluate(cropped.candles, cropped.sampledHeight)
+                        AnalysisStatus.update(
+                            cropped, reading,
+                            visionSettings.getAsset(), visionSettings.getTimeframe()
+                        )
+                    }
                 }
             } catch (error: Exception) {
+                AnalysisStatus.error("Não foi possível processar o quadro: " + error.javaClass.simpleName)
                 CaptureStatus.setPhase(
                     "ERRO DE QUADRO",
                     "Falha no processamento: ${error.javaClass.simpleName}."
