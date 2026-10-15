@@ -2,17 +2,21 @@
 
 Aplicativo Android nativo para **diagnóstico de captura de tela e painel flutuante** durante o uso de gráficos em navegador.
 
-## Escopo da versão 0.1.0
+## Escopo da versão 0.2.0
 
 - Interface de monitoramento em português (Jetpack Compose).
 - Captura de tela após consentimento explícito via MediaProjection.
 - Serviço em primeiro plano com notificação e ação para interromper a captura.
 - Leitura de quadros e diagnóstico real de frequência, idade do quadro e luminosidade.
+- Área de análise configurável com controles percentuais.
+- Reconhecimento geométrico experimental de candles verdes e vermelhos no recorte.
+- Identificação parcial de comandos de preço, nova alta/baixa e observação de retorno à região de 50%.
+- Registro de observações na sessão (não persistente).
 - Painel flutuante arrastável e minimizável (permissão de sobreposição).
 - Interrupção e limpeza dos recursos.
 - Compilação automatizada do APK com GitHub Actions e publicação de pré-release.
 
-**Não possui reconhecimento de candles, inteligência de sinais, CALL ou PUT nesta versão.** A finalidade é provar a compatibilidade de captura e sobreposição antes de desenvolver análise gráfica.
+**O aplicativo possui um algoritmo real e experimental de reconhecimento de candles**, mas NÃO possui validação da Quotex nem leitura de timestamps/valores OHLC de uma API. As etiquetas CALL/PUT são apenas **observações de estudo**, não gatilhos confirmados nem recomendações. O PDF possui mais padrões que ainda precisam ser implementados.
 
 ## Teste
 
@@ -42,6 +46,5 @@ Sem wrapper Gradle neste repositório, por enquanto. O GitHub Actions instala a 
 
 ## Próximas etapas
 
-- **v0.2**: calibração e reconhecimento geométrico de candles.
 - **v0.3**: regras testáveis conforme o PDF, incluindo comandos e taxas divididas.
 - **v0.4**: estados dos gatilhos e alertas fundamentados para testes demonstrativos.
