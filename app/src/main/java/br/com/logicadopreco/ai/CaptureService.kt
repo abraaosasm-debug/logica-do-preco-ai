@@ -37,6 +37,7 @@ class CaptureService : Service() {
     private val vision = MarketVision()
     private val patterns = PatternEngine()
     private val studies = ExpandedPatternEngine()
+    private val timeline = CandleTimeline()
     private lateinit var visionSettings: VisionSettings
     private var lastAnalysisAtMs = 0L
 
@@ -136,6 +137,8 @@ class CaptureService : Service() {
         val densityDpi = resources.displayMetrics.densityDpi
         CaptureStatus.start(width, height)
         AnalysisStatus.reset()
+        SessionDiagnostic.clear()
+        timeline.clear()
         lastAnalysisAtMs = 0L
 
         val imageReader = ImageReader.newInstance(
@@ -155,10 +158,18 @@ class CaptureService : Service() {
                         val cropped = vision.analyze(image, visionSettings.getCrop())
                         val reading = patterns.evaluate(cropped.candles, cropped.sampledHeight)
                         val study = studies.evaluate(cropped.candles, cropped.sampledHeight)
+                        val timeframe = visionSettings.getTimeframe()
+                        val clock = timeline.observe(cropped.candles, now, timeframe)
+                        val visualQuality = if (cropped.candles.isEmpty()) 0 else
+                            (cropped.candles.map { it.quality }.average() * 100).toInt()
+                        SessionDiagnostic.add(
+                            cropped.candles, visualQuality, timeframe,
+                            cropped.sampledWidth, cropped.sampledHeight, clock
+                        )
                         AnalysisStatus.update(
                             cropped, reading,
-                            visionSettings.getAsset(), visionSettings.getTimeframe(),
-                            study
+                            visionSettings.getAsset(), timeframe,
+                            study, clock
                         )
                     }
                 }
