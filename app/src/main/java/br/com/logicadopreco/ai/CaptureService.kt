@@ -36,6 +36,7 @@ class CaptureService : Service() {
     private var stopped = false
     private val vision = MarketVision()
     private val patterns = PatternEngine()
+    private val studies = ExpandedPatternEngine()
     private lateinit var visionSettings: VisionSettings
     private var lastAnalysisAtMs = 0L
 
@@ -152,9 +153,11 @@ class CaptureService : Service() {
                         lastAnalysisAtMs = now
                         val cropped = vision.analyze(image, visionSettings.getCrop())
                         val reading = patterns.evaluate(cropped.candles, cropped.sampledHeight)
+                        val study = studies.evaluate(cropped.candles, cropped.sampledHeight)
                         AnalysisStatus.update(
                             cropped, reading,
-                            visionSettings.getAsset(), visionSettings.getTimeframe()
+                            visionSettings.getAsset(), visionSettings.getTimeframe(),
+                            study
                         )
                     }
                 }
